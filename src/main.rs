@@ -1,9 +1,11 @@
 
+use anyhow::Ok;
 use serde_json;
-use std::env;
+use std::{env, path::PathBuf};
 
 // Available if you need it!
 use serde_bencode;
+use serde::{Serialize, Deserialize};
 
 #[allow(dead_code)]
 fn decode_bencoded_value(encoded_value: &str) -> anyhow::Result<serde_json::Value> {
@@ -37,6 +39,25 @@ fn convert(value: serde_bencode::value::Value) -> anyhow::Result<serde_json::Val
     }
 }
 
+#[derive(Serialize, Deserialize)]
+struct TorrentInfo {
+    name: String,
+    #[serde(rename = "piece length")]
+    piece_length: u64,
+    #[serde(with = "serde_bytes")]
+    pieces: Vec<u8>,
+    length: usize,
+}
+#[derive(Serialize, Deserialize)]
+struct Torrent {
+announce: String,
+info: TorrentInfo,
+}
+fn load_torrent_file<T>(file_path:T) -> anyhow::Result<Torrent> where T: Into<PathBuf> {
+    let content = std::fs::read(file_path.into())?;
+    let torrent: Torrent = serde_bencode::from_bytes(&content)?;
+    Ok(torrent)
+}
 // Usage: your_bittorrent.sh decode "<encoded_value>"
 fn main() -> anyhow::Result<()>{
     let args: Vec<String> = env::args().collect();
@@ -50,7 +71,14 @@ fn main() -> anyhow::Result<()>{
         let encoded_value = &args[2];
         let decoded_value = decode_bencoded_value(encoded_value)?;
         println!("{}", decoded_value.to_string());
-    } else {
+    }else if command == "info" {
+        let file_path = &args[2];        
+        let torrent = load_torrent_file(file_path)?;
+        println!("Tracker URL: {}\nLength: {}",torrent.announce,torrent.info.length);
+        //print!("Tracker: {}\n", torrent.announce);
+     //   println!("Length: {}", torrent.info.length);
+    } 
+    else {
         println!("unknown command: {}", args[1])
     }
     Ok(())
