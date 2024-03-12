@@ -30,6 +30,7 @@ fn convert(value: serde_bencode::value::Value) -> anyhow::Result<serde_json::Val
             }
             Ok(serde_json::Value::Object(map))
         }
+        //todo: handle other cases
         /*_ => {
             panic!("Unreachable encoded value{:?}", value)
         }*/
