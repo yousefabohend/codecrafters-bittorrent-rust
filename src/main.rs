@@ -59,6 +59,7 @@ fn load_torrent_file<T>(file_path:T) -> anyhow::Result<Torrent> where T: Into<Pa
     let torrent: Torrent = serde_bencode::from_bytes(&content)?;
     Ok(torrent)
 }
+
 // Usage: your_bittorrent.sh decode "<encoded_value>"
 fn main() -> anyhow::Result<()>{
     let args: Vec<String> = env::args().collect();
@@ -80,10 +81,11 @@ fn main() -> anyhow::Result<()>{
         hasher.update(&info);
         let hash = hasher.finalize();
         let hash = hex::encode(hash);
-        //println!("Tracker URL: {} \n Length: {} \n Hash: {}",torrent.announce , torrent.info.length , hash);
         println!("Tracker URL: {}", torrent.announce);
         println!("Length: {}", torrent.info.length);
         println!("Info Hash: {}", hash);
+        println!("Piece Length: {}", torrent.info.piece_length);
+        println!("Piece Hashes: {}", hex::encode(torrent.info.pieces));
     } 
     else {
         println!("unknown command: {}", args[1])
