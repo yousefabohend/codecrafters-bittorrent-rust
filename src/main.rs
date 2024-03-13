@@ -5,7 +5,7 @@ use serde_bencode;
 use serde::{Serialize, Deserialize};
 use anyhow::Ok;
 use serde_json;
-use std::{env, path::PathBuf};
+use std::{env, io::{Read, Write}, path::PathBuf};
 #[allow(dead_code)]
 fn decode_bencoded_value(encoded_value: &str) -> anyhow::Result<serde_json::Value> {
     // If encoded_value starts with a digit, it's a number
@@ -79,6 +79,30 @@ fn request_tracker(torrent :&Torrent, hash: &[u8;20] ) -> anyhow::Result<Tracker
     let response: TrackerResponse = serde_bencode::from_bytes(&body).unwrap();
     Ok(response)
 }
+fn get_peer_id( hash: &[u8;20], peer: &String) -> anyhow::Result<String>{
+    let protocol = "BitTorrent protocol";
+    let reserved = [0u8; 8];
+    let  peer_id = [0u8; 20];
+    let mut  handshake = Vec::new();
+    handshake.push(protocol.len() as u8);
+    handshake.extend(protocol.as_bytes());
+    handshake.extend(&reserved);
+    handshake.extend(hash);
+    handshake.extend(peer_id);
+
+    let mut stream = std::net::TcpStream::connect(peer)?;
+    stream.write_all(&handshake)?;
+    let mut buffer = [0; 68];
+    stream.read_exact(&mut buffer)?;
+    //let protocol_string_length = buffer[0];
+    //let protocol_string = &buffer[1..20];
+    //let reserved = &buffer[20..28];
+    //let info_hash = &buffer[28..48];
+    let peer_id = &buffer[48..68];
+    Ok(hex::encode(peer_id))
+    
+ 
+}
 // Usage: your_bittorrent.sh decode "<encoded_value>"
 fn main() -> anyhow::Result<()>{
     let args: Vec<String> = env::args().collect();
@@ -110,6 +134,12 @@ fn main() -> anyhow::Result<()>{
             println!("{}:{}", ip, port);
         });
         
+    }
+    else if command == "handshake" {
+        let torrent = load_torrent_file(&args[2])?;
+        let hash = calculate_info_hash(&torrent.info)?;
+        let peer_id = get_peer_id(&hash, &args[3])?;
+        println!("Peer ID: {}", peer_id);
     }
     else {
         println!("unknown command: {}", args[1])
